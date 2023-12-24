@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body{
+            height: 100%;
+            overflow: hidden;
+            font-family: 微軟正黑體;
+            /* background-image: url(./02-bg-w.png); */
+            background: lightgoldenrodyellow;
+            background-attachment: fixed;
+            background-size: cover;
+            position: relative;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: url(./h-up1.png) 5 5, auto;
+
+        }
+        #game {
+            margin: auto;
+            width: 65%;
+            height: 85%;
+            border: 1px solid black;
+            /* background: black; */
+            position: relative;
+            overflow: hidden;
+        }
+
+        #game>img {
+            height: 80px;
+            position: absolute;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .blood {
+            /* 忽略點擊事件 */
+            pointer-events: none;
+        }
+        #flex{
+            width: 90%;
+            display: flex;
+            justify-content: center;
+            margin-left: 5%;
+        }
+        p{
+            display: block;
+            background: blanchedalmond;
+            margin-left: 10%;
+        }
+
+        /* 滑鼠點擊特效 */
+        .click-image {
+            position: absolute;
+            width: 120px; /* 圖片的寬度 */
+            height: 10px; /* 圖片的高度 */
+            pointer-events: none; /* 避免圖片阻礙點擊事件 */
+        }
+    </style>
+</head>
+
+<body>
+    <div id="flex">
+        <input type="button" value="開始" id="btn-start">
+        <p>功德值: <span id="text-score">0</span></p>
+        <p>剩餘: <span id="text-time">0</span>秒</p>
+        <p>功德值榜首: <span id="text-hsname">-</span></p>
+        <p>最高功德值: <span id="text-hsscore">0</span></p>
+    </div>
+    <div id="game"></div>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.7.32/sweetalert2.all.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js'></script>
+    <script>
+        // 目前分數
+        let score = 0
+        // 剩餘秒數
+        let time = 0
+        // 計時器
+        let timer = 0
+        // 最高分
+        const hs = {
+            name: '-',
+            score: 0
+        }
+        if (localStorage.hs) {
+            const data = JSON.parse(localStorage.hs)
+            hs.name = data.name
+            hs.score = data.score
+            $('#text-hsname').text(hs.name)
+            $('#text-hsscore').text(hs.score)
+        }
+
+        // 點擊開始
+        $('#btn-start').click(function () {
+            // 停用按鈕
+            $(this).attr('disabled', true)
+            // 重設
+            score = 0
+            $('#text-score').text(score)
+            time = 30
+            $('#text-time').text(time)
+            // 因為 setInterval 裡的 this 會指向 window，而不是點到的按鈕，所以先把 this 存起來
+            const _this = this
+            // 開始遊戲
+            timer = setInterval(function () {
+                // 倒數
+                time--
+                $('#text-time').text(time)
+                // 隨機 1~10
+                const random = Math.ceil(Math.random() * 10)
+                // 如果隨機數字大於 5 且魚的數量小於 5
+                if (random > 5 && $('.fish').length < 5) {
+                    // 隨機位置
+                    const top = Math.round(Math.random() * 100) + '%'
+                    const left = Math.round(Math.random() * 100) + '%'
+                    // 產生魚
+                    const fish = $(`<img src="./mu.png" class="fish" style="top: ${top}; left: ${left}">`)
+                    $('#game').append(fish)
+                    moveFish(fish)
+                }
+                // 如果時間到了
+                if (time === 0) {
+                    clearInterval(timer)
+                    // 重新啟用按鈕
+                    $(_this).attr('disabled', false)
+                    // 清空遊戲區域
+                    // .empty() 會把裡面的子元素都刪掉
+                    $('#game').empty()
+
+                    if (score > hs.score) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '時間到',
+                            text: `最高分，你得到 ${score} 分`,
+                            // input 的 type
+                            input: 'text',
+                            // input 的其他屬性
+                            inputAttributes: {
+                                required: true
+                            },
+                            inputPlaceholder: '請輸入你的名字',
+                            // 驗證錯誤時顯示的文字
+                            validationMessage: '請輸入你的名字',
+                            // 不允許點擊外面關閉對話框
+                            allowOutsideClick: false,
+                            // 不允許按 ESC 關閉對話框
+                            allowEscapeKey: false
+                        }).then(function (result) {
+                            hs.score = score
+                            hs.name = result.value
+                            $('#text-hsname').text(hs.name)
+                            $('#text-hsscore').text(hs.score)
+                            // localStorage.setItem(名稱, 文字)
+                            // localStorage.名稱 = 文字
+                            localStorage.hs = JSON.stringify(hs)
+                        })
+                    } else {
+                        Swal.fire({
+                            icon: 'info',
+                            title: '時間到',
+                            text: `你得到 ${score} 分`
+                        })
+                    }
+                }
+            }, 1000)
+        })
+
+        // 點擊
+        $('#game').on('click', '.fish', function () {
+            $(this).stop()
+            $(this).attr('src', 'mu-fly.png')
+            $(this).removeClass('fish').addClass('blood')
+            score++
+            $('#text-score').text(score)
+        })
+
+        function moveFish(fish) {
+            // 隨機位置
+            const top = Math.round(Math.random() * 100) + '%'
+            const left = Math.round(Math.random() * 100) + '%'
+            fish.animate({ top, left }, 2000, function () {
+                moveFish(fish)
+            })
+        }
+        // 滑鼠點擊特效
+        $(document).ready(function() {
+            $('#game').click(function(event) {
+                // 計算圖片應該出現的位置
+                var x = event.pageX - 200; // 減去圖片一半的寬度
+                var y = event.pageY - 160; // 減去圖片一半的高度
+
+                // 創建並配置圖片
+                var $img = $('<img>', {
+                    src: 'plusone.png', // 替換為你的圖片路徑
+                    class: 'click-image',
+                    css: {
+                    left: x + 'px',
+                    top: y + 'px'
+                    }
+                });
+
+        // 將圖片添加到容器中並在1秒後移除
+        $('#game').append($img);
+        setTimeout(function() {
+            $img.remove();
+        }, 1000); // 1秒後移除圖片
+            });
+        });
+        
+    </script>
+</body>
+
+</html>
